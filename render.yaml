@@ -1,0 +1,12 @@
+services:
+  - type: web
+    name: climate-api
+    env: python
+    buildCommand: |
+      pip install -r requirements.txt
+      python download_lcz.py
+    startCommand: python climate_classifier.py
+    envVars:
+      - key: FLASK_ENV
+        value: production
+    plan: free
