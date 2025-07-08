@@ -2,6 +2,7 @@ from flask import Flask, request, jsonify
 from flask_cors import CORS
 from geopy.geocoders import Nominatim
 import rasterio
+import traceback
 
 app = Flask(__name__)
 CORS(app)
@@ -23,29 +24,41 @@ KOPPEN_CLASSES = {
 def classify():
     try:
         data = request.json
+        print("Received data:", data, flush=True)
+
         address = data.get("address")
+        if not address:
+            return jsonify({"error": "Address is required"}), 400
 
         # Geocode the address
         geolocator = Nominatim(user_agent="climate_classifier")
         location = geolocator.geocode(address)
-
         if not location:
             return jsonify({"error": "Address not found"}), 400
 
         lat, lon = location.latitude, location.longitude
+        print(f"Geocoded address to lat: {lat}, lon: {lon}", flush=True)
 
         # Read the raster and classify
-        with rasterio.open("koppen_geiger_0p00833333.tif") as koppen_ds:
+        raster_path = "koppen_geiger_0p00833333.tif"
+        print(f"Opening raster file: {raster_path}", flush=True)
+
+        with rasterio.open(raster_path) as koppen_ds:
             koppen_sample = list(koppen_ds.sample([(lon, lat)]))[0][0]
             koppen_label = int(koppen_sample)
+
+        koppen_class = KOPPEN_CLASSES.get(koppen_label, "Unknown")
+        print(f"Köppen label: {koppen_label}, classified as: {koppen_class}", flush=True)
 
         return jsonify({
             "lat": lat,
             "lon": lon,
-            "koppen_class": KOPPEN_CLASSES.get(koppen_label, "Unknown")
+            "koppen_class": koppen_class
         })
 
     except Exception as e:
+        print("Exception occurred:", flush=True)
+        traceback.print_exc()  # This shows full traceback in logs
         return jsonify({"error": str(e)}), 500
 
 if __name__ == "__main__":
