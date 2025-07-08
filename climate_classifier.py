@@ -6,7 +6,7 @@ from flask_cors import CORS
 app = Flask(__name__)
 CORS(app)
 
-# LCZ label to class name
+# LCZ label to class name (not used currently)
 LCZ_CLASSES = {
     1: "Compact high-rise",
     2: "Compact mid-rise",
@@ -47,20 +47,19 @@ def classify():
         lat = data["lat"]
         lon = data["lon"]
 
-        # Load LCZ raster
-        with rasterio.open("lcz_filter_v3.tif") as lcz_ds:
-            lcz_sample = list(lcz_ds.sample([(lon, lat)]))[0][0]
+        # === Removed LCZ sampling ===
+        # with rasterio.open("lcz_filter_v3.tif") as lcz_ds:
+        #     lcz_sample = list(lcz_ds.sample([(lon, lat)]))[0][0]
+        # lcz_label = int(lcz_sample)
 
         # Load Köppen raster
         with rasterio.open("koppen_geiger_0p00833333.tif") as koppen_ds:
             koppen_sample = list(koppen_ds.sample([(lon, lat)]))[0][0]
 
-        # Convert to int for mapping
-        lcz_label = int(lcz_sample)
         koppen_label = int(koppen_sample)
 
         return jsonify({
-            "lcz_class": LCZ_CLASSES.get(lcz_label, "Unknown"),
+            # "lcz_class": LCZ_CLASSES.get(lcz_label, "Unknown"),
             "koppen_class": KOPPEN_CLASSES.get(koppen_label, "Unknown")
         })
 
@@ -69,4 +68,3 @@ def classify():
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=10000)
-
