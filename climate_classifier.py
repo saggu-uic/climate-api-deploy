@@ -1,31 +1,10 @@
 from flask import Flask, request, jsonify
-import rasterio
-from rasterio.sample import sample_gen
 from flask_cors import CORS
+from geopy.geocoders import Nominatim
+import rasterio
 
 app = Flask(__name__)
 CORS(app)
-
-# LCZ label to class name (not used currently)
-LCZ_CLASSES = {
-    1: "Compact high-rise",
-    2: "Compact mid-rise",
-    3: "Compact low-rise",
-    4: "Open high-rise",
-    5: "Open mid-rise",
-    6: "Open low-rise",
-    7: "Lightweight low-rise",
-    8: "Large low-rise",
-    9: "Sparsely built",
-    10: "Heavy industry",
-    11: "Dense trees",
-    12: "Scattered trees",
-    13: "Bush, scrub",
-    14: "Low plants",
-    15: "Bare rock or paved",
-    16: "Bare soil or sand",
-    17: "Water"
-}
 
 # Köppen label to class name
 KOPPEN_CLASSES = {
@@ -44,22 +23,25 @@ KOPPEN_CLASSES = {
 def classify():
     try:
         data = request.json
-        lat = data["lat"]
-        lon = data["lon"]
+        address = data.get("address")
 
-        # === Removed LCZ sampling ===
-        # with rasterio.open("lcz_filter_v3.tif") as lcz_ds:
-        #     lcz_sample = list(lcz_ds.sample([(lon, lat)]))[0][0]
-        # lcz_label = int(lcz_sample)
+        # Geocode the address
+        geolocator = Nominatim(user_agent="climate_classifier")
+        location = geolocator.geocode(address)
 
-        # Load Köppen raster
+        if not location:
+            return jsonify({"error": "Address not found"}), 400
+
+        lat, lon = location.latitude, location.longitude
+
+        # Read the raster and classify
         with rasterio.open("koppen_geiger_0p00833333.tif") as koppen_ds:
             koppen_sample = list(koppen_ds.sample([(lon, lat)]))[0][0]
-
-        koppen_label = int(koppen_sample)
+            koppen_label = int(koppen_sample)
 
         return jsonify({
-            # "lcz_class": LCZ_CLASSES.get(lcz_label, "Unknown"),
+            "lat": lat,
+            "lon": lon,
             "koppen_class": KOPPEN_CLASSES.get(koppen_label, "Unknown")
         })
 
