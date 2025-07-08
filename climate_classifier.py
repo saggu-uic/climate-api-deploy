@@ -3,6 +3,7 @@ from flask_cors import CORS
 from geopy.geocoders import Nominatim
 import rasterio
 import traceback
+import os
 
 app = Flask(__name__)
 CORS(app)
@@ -32,15 +33,15 @@ def classify():
 
         # Geocode the address
         geolocator = Nominatim(user_agent="climate_classifier")
-        location = geolocator.geocode(address)
+        location = geolocator.geocode(address, timeout=10)
         if not location:
             return jsonify({"error": "Address not found"}), 400
 
         lat, lon = location.latitude, location.longitude
         print(f"Geocoded address to lat: {lat}, lon: {lon}", flush=True)
 
-        # Read the raster and classify
-        raster_path = "koppen_geiger_0p00833333.tif"
+        # Construct absolute path to the raster file
+        raster_path = os.path.join(os.path.dirname(__file__), "koppen_geiger_0p00833333.tif")
         print(f"Opening raster file: {raster_path}", flush=True)
 
         with rasterio.open(raster_path) as koppen_ds:
@@ -53,12 +54,12 @@ def classify():
         return jsonify({
             "lat": lat,
             "lon": lon,
-            "koppen_class": koppen_class
+            "global_climatic_classification": koppen_class
         })
 
     except Exception as e:
         print("Exception occurred:", flush=True)
-        traceback.print_exc()  # This shows full traceback in logs
+        traceback.print_exc()  # Show full traceback in Render logs
         return jsonify({"error": str(e)}), 500
 
 if __name__ == "__main__":
